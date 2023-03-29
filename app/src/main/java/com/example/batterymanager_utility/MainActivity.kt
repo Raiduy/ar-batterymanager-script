@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.BatteryManager
 import android.os.Bundle
 import android.os.Environment
+import android.os.PowerManager
 import android.util.AttributeSet
 import android.util.Log
 import android.view.View
@@ -31,9 +32,11 @@ import kotlin.math.floor
 
 class MainActivity : ComponentActivity() {
 
+    private lateinit var batteryManager: BatteryManager
+    private lateinit var powerManager: PowerManager
     private lateinit var broadcastReceiver: BroadcastReceiver
-    private var lastKnownVoltage : Int = 0 // milivolts
-    private var lastKnownLevel : Double = 0.0 // percentage
+    private var lastKnownVoltage : Int = 0      // milivolts
+    private var lastKnownLevel : Double = 0.0   // percentage
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,12 +113,11 @@ class MainActivity : ComponentActivity() {
 
     private fun writeToFile(file: File) {
         Toast.makeText(this, "Hello from BatteryManager utility!", Toast.LENGTH_SHORT).show()
-        val batteryManager = this.getSystemService(BATTERY_SERVICE) as BatteryManager
         while (true) {
             receiverSetup()
 
             Thread.sleep(1000)
-            val stats = getStats(batteryManager)
+            val stats = getStats()
 
             Log.i("BatteryMgr:writeToFile", "writing $stats")
             FileOutputStream(file, true).use {
@@ -126,6 +128,8 @@ class MainActivity : ComponentActivity() {
 
 
     private fun receiverSetup() {
+        batteryManager = this.getSystemService(BATTERY_SERVICE) as BatteryManager
+        powerManager   = this.getSystemService(POWER_SERVICE  ) as PowerManager
         broadcastReceiver = BatteryManagerBroadcastReceiver { intent ->
             this.lastKnownVoltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
 
@@ -140,7 +144,7 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    private fun getStats(batteryManager: BatteryManager): String {
+    private fun getStats(): String {
         val timestamp = System.currentTimeMillis()
 
         // code from https://github.com/S2-group/batterydrainer/blob/master/app/src/main/java/nl/vu/cs/s2group/batterydrainer/LiveView.kt
@@ -171,25 +175,6 @@ class MainActivity : ComponentActivity() {
 
         return "$timestamp,$currentNow,$status,$currentAverage,$lastKnownVoltage,$watts,$energy,$capacity,$capacityPercentage,$hours,$minutes"
     }
-
-
-//    fun writeToLog() {
-//        Toast.makeText(this, "Hello from BatteryManager utility!", Toast.LENGTH_SHORT).show()
-//
-//        var batteryManager = this.getSystemService(BATTERY_SERVICE) as BatteryManager
-//        var chargingStatus: Boolean
-//        var currentNow: Int
-//
-//        while (true) {
-//            chargingStatus = batteryManager.isCharging
-//            currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-//
-//            Log.e("BatteryMgr", "chargeStat $chargingStatus")
-//            Log.e("BatteryMgr", "currentNow $currentNow")
-//
-//            Thread.sleep(5000)
-//        }
-//    }
 }
 
 private class BatteryManagerBroadcastReceiver(
